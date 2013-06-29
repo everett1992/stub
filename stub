@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# A file creation framework.
+# 
+# stub file_name[.type] [-t type]
+
+# If the first argument is not a flag use it as
+# the filename
+if [[ $1 != -* ]]; then
+  filename=$1
+  shift
+fi
+
+while getopts ":t:" opt; do
+  case $opt in
+    t)
+      type="$OPTARG"
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      ;;
+  esac
+done
+shift $(($OPTIND-1))
+
+if [[ -z "$filename" ]]; then
+  filename="$1"
+  shift
+fi
+
+if [ -f $filename ]; then
+  echo "File $filename already exits, exiting"
+  exit 1
+fi
+
+if [[ -z "$type" ]]; then
+  echo 'no type'
+fi
