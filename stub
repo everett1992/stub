@@ -4,13 +4,17 @@
 # 
 # stub file_name[.type] [-t type]
 
+function verbose {
+  echo $*
+}
+
+verbose "Parsing Arguments"
 # If the first argument is not a flag use it as
 # the filename
 if [[ $1 != -* ]]; then
   filename=$1
   shift
 fi
-
 
 # TODO: Add -v (verbose), -h (help) and -f (force)
 # Parse the options
@@ -52,18 +56,19 @@ if [ -f $filename ]; then
   exit 1
 fi
 
+verbose "Using filename: $filename"
+
 # If the type wasn't set explicitly try to get it from the 
 # filename
 if [[ -z "$type" ]]; then
+  verbose "No type set explicitly, trying to get it from filename"
   type=$(echo $filename | grep -Po '(?<=(?<!^)\.)[^.]*$')
   if [[ -z "$type" ]]; then
     echo "Could not determine the file type from the file name, exiting" >&2
     exit 1
   fi
+  verbose "Using type: $type"
 fi
-
-echo "filename: $filename"
-echo "type: $type"
 
 if [[ -z "$filename" ]]; then
   echo "Something went wrong and filename was not set" >&2
@@ -74,3 +79,16 @@ if [[ -z "$type" ]]; then
   echo "Something went wrong and type was not set" >&2
   exit 1
 fi
+
+
+# TODO: Look in ~/.stubs first, then a sytemwide location
+# Search for a stub named <type>.*
+stubdir="$(dirname $0)/stubs"
+stub="$type.*"
+
+verbose "Checking for $stubdir/$stub"
+if [ ! -f $stubdir/$stub ]; then
+  echo "Could not find $type stub, exiting" >&2
+  exit 1
+fi
+stub_file=$stubdir/$stub
