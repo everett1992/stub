@@ -11,6 +11,12 @@ if [[ $1 != -* ]]; then
   shift
 fi
 
+
+# TODO: Add -v (verbose), -h (help) and -f (force)
+# Parse the options
+# 
+# -t <type>
+# Explicitly set the type of file to create
 while getopts ":t:" opt; do
   case $opt in
     t)
@@ -26,16 +32,45 @@ while getopts ":t:" opt; do
 done
 shift $(($OPTIND-1))
 
+
+# If file name hasn't been set yet try to
+# get if from the remaining  Arguments.
+#
+# Exit if there still isn't a file name
 if [[ -z "$filename" ]]; then
   filename="$1"
   shift
+  if [[ -z "$filename" ]]; then
+    echo "No filename provided, exiting" >&2
+    exit 1
+  fi
 fi
 
+# Exit if a file named $filename exits already.
 if [ -f $filename ]; then
   echo "File $filename already exits, exiting"
   exit 1
 fi
 
+# If the type wasn't set explicitly try to get it from the 
+# filename
 if [[ -z "$type" ]]; then
-  echo 'no type'
+  type=$(echo $filename | grep -Po '(?<=(?<!^)\.)[^.]*$')
+  if [[ -z "$type" ]]; then
+    echo "Could not determine the file type from the file name, exiting" >&2
+    exit 1
+  fi
+fi
+
+echo "filename: $filename"
+echo "type: $type"
+
+if [[ -z "$filename" ]]; then
+  echo "Something went wrong and filename was not set" >&2
+  exit 1
+fi
+
+if [[ -z "$type" ]]; then
+  echo "Something went wrong and type was not set" >&2
+  exit 1
 fi
