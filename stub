@@ -5,90 +5,103 @@
 # stub file_name[.type] [-t type]
 
 function verbose {
-  echo $*
+  if [ $verbose ]; then
+    echo $*
+  fi
 }
 
-verbose "Parsing Arguments"
-# If the first argument is not a flag use it as
-# the filename
-if [[ $1 != -* ]]; then
-  filename=$1
-  shift
-fi
+function parseopts {
+  # If the first argument is not a flag use it as
+  # the filename
+  if [[ $1 != -* ]]; then
+    filename=$1
+    shift
+  fi
 
-# TODO: Add -v (verbose), -h (help) and -f (force)
-# Parse the options
-# 
-# -t <type>
-# Explicitly set the type of file to create
-while getopts ":t:" opt; do
-  case $opt in
-    t)
-      type="$OPTARG"
-      ;;
-    \?)
-      echo "Invalid option: -$OPTARG" >&2
-      ;;
-    :)
-      echo "Option -$OPTARG requires an argument." >&2
-      ;;
-  esac
-done
-shift $(($OPTIND-1))
+  # TODO: Add -v (verbose), -h (help) and -f (force)
+  # Parse the options
+  # 
+  # -t <type>
+  # Explicitly set the type of file to create
+  while getopts ":t:v" opt; do
+    case $opt in
+      t)
+        type="$OPTARG"
+        ;;
+      v)
+        verbose=true
+        ;;
+      \?)
+        echo "Invalid option: -$OPTARG" >&2
+        ;;
+      :)
+        echo "Option -$OPTARG requires an argument." >&2
+        ;;
+    esac
+  done
+  shift $(($OPTIND-1))
 
 
-# If file name hasn't been set yet try to
-# get if from the remaining  Arguments.
-#
-# Exit if there still isn't a file name
-if [[ -z "$filename" ]]; then
-  filename="$1"
-  shift
+  # If file name hasn't been set yet try to
+  # get if from the remaining  Arguments.
+  #
+  # Exit if there still isn't a file name
   if [[ -z "$filename" ]]; then
-    echo "No filename provided, exiting" >&2
+    filename="$1"
+    shift
+    if [[ -z "$filename" ]]; then
+      echo "No filename provided, exiting" >&2
+      exit 1
+    fi
+  fi
+
+
+  # If the type wasn't set explicitly try to get it from the 
+  # filename
+  if [[ -z "$type" ]]; then
+    verbose "No type set explicitly, trying to get it from filename"
+    type=$(echo $filename | grep -Po '(?<=(?<!^)\.)[^.]*$')
+    if [[ -z "$type" ]]; then
+      echo "Could not determine the file type from the file name, exiting" >&2
+      exit 1
+    fi
+  fi
+}
+
+function get_stub {
+  # TODO: Look in ~/.stubs first, then a sytem wide location
+  # Search for a stub named <type>.*
+  stubdir="$(dirname $0)/stubs"
+  stub="$type.*"
+
+  verbose "Checking for $stubdir/$stub"
+  if [ ! -f $stubdir/$stub ]; then
+    echo "Could not find $type stub, exiting" >&2
     exit 1
   fi
-fi
+  stub_file=$stubdir/$stub
+}
+
+parseopts $*
+verbose "Filename: $filename"
+verbose "Type: $type"
 
 # Exit if a file named $filename exits already.
-if [ -f $filename ]; then
-  echo "File $filename already exits, exiting"
-  exit 1
-fi
+#if [ -f $filename ]; then
+#  echo "File $filename already exits, exiting"
+#  exit 1
+#fi
 
-verbose "Using filename: $filename"
+# store the stub file in $stub_file
+get_stub
 
-# If the type wasn't set explicitly try to get it from the 
-# filename
-if [[ -z "$type" ]]; then
-  verbose "No type set explicitly, trying to get it from filename"
-  type=$(echo $filename | grep -Po '(?<=(?<!^)\.)[^.]*$')
-  if [[ -z "$type" ]]; then
-    echo "Could not determine the file type from the file name, exiting" >&2
-    exit 1
+# Move it to the new location
+cp $stub_file $filename
+
+# Parse the new file, and prompt for included variables.
+for token in $(grep -Po '(?<=\{\{)[\w@]*(?=\}\})' $stub_file); do
+  if [[ $token != @* ]]; then
+    read -p "$token: " rep
+    sed -i "s/{{$token}}/$rep/" $filename
   fi
-  verbose "Using type: $type"
-fi
-
-if [[ -z "$filename" ]]; then
-  echo "Something went wrong and filename was not set" >&2
-  exit 1
-fi
-
-if [[ -z "$type" ]]; then
-  echo "Something went wrong and type was not set" >&2
-  exit 1
-fi
-
-
-# TODO: Look in ~/.stubs first, then a sytemwide location
-# Search for a stub named <type>.*
-stubdir="$(dirname $0)/stubs"
-stub="$type.*"
-
-verbose "Checking for $stubdir/$stub"
-if [ ! -f $stubdir/$stub ]; then
-  echo "Could not find $type stub, exiting" >&2
-  exit 1
-fi
-stub_file=$stubdir/$stub
+done
