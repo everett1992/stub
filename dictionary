@@ -1,0 +1,4 @@
+author: "Caleb Everett"
+date: date
+filename: "${filename%.*}"
+full_filename: "$filename"

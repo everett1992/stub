@@ -4,6 +4,9 @@
 # 
 # stub file_name[.type] [-t type]
 
+DICTIONARY="$(dirname $0)/dictionary"
+STUBDIR="$(dirname $0)/stubs"
+
 function verbose {
   if [ $verbose ]; then
     echo $*
@@ -71,16 +74,23 @@ function parseopts {
 function get_stub {
   # TODO: Look in ~/.stubs first, then a sytem wide location
   # Search for a stub named <type>.*
-  stubdir="$(dirname $0)/stubs"
   stub="$type.*"
 
-  verbose "Checking for $stubdir/$stub"
-  if [ ! -f $stubdir/$stub ]; then
+  verbose "Checking for $STUBDIR/$stub"
+  if [ ! -f $STUBDIR/$stub ]; then
     echo "Could not find $type stub, exiting" >&2
     exit 1
   fi
-  stub_file=$stubdir/$stub
+  stub_file=$STUBDIR/$stub
 }
+
+verbose "Loading Definition File"
+declare -A dictionary
+while read line; do
+  symbol="${line%:*}"
+  definition="${line#*:[[:space:]]*}"
+  dictionary["$symbol"]=$definition
+done < $DICTIONARY
 
 parseopts $*
 verbose "Filename: $filename"
@@ -99,9 +109,16 @@ get_stub
 cp $stub_file $filename
 
 # Parse the new file, and prompt for included variables.
-for token in $(grep -Po '(?<=\{\{)[\w@]*(?=\}\})' $stub_file); do
-  if [[ $token != @* ]]; then
-    read -p "$token: " rep
-    sed -i "s/{{$token}}/$rep/" $filename
+for symbol in $(grep -Po '(?<=\{\{)[\w@]*(?=\}\})' $stub_file); do
+  if [[ $symbol == @* ]]; then
+    rep=${dictionary[${symbol:1}]}
+    if [[ $rep == \"* ]]; then
+      rep=`eval echo $rep`
+    fi
   fi
+
+  if [[ -z "$rep" ]]; then
+    read -p "$symbol: " rep
+  fi
+  sed -i "s/{{$symbol}}/$rep/" $filename
 done

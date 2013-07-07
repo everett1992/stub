@@ -1,5 +1,5 @@
 /**
- * {{author}} {{@full_filename}}
+ * {{@author}} {{@full_filename}} {{@date}}
  **/
 public class {{@filename}} {
   public static int main(String[] args) {
